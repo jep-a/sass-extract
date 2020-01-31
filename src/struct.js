@@ -5,20 +5,23 @@ import { serialize } from './serialize';
  * Transform a sassValue into a structured value based on the value type
  */
 function makeValue(sassValue, sass) {
-  switch(sassValue.constructor) {
-    case sass.types.String:
-    case sass.types.Boolean:
-      return { value: sassValue.getValue() };
+  const type = sassValue.constructor.name;
 
-    case sass.types.Number:
-      return { value: sassValue.getValue(), unit: sassValue.getUnit() };
+  switch(type) {
+    case 'SassString':
+    case 'SassBoolean':
+      return { type, value: sassValue.getValue() };
 
-    case sass.types.Color:
+    case 'SassNumber':
+      return { type, value: sassValue.getValue(), unit: sassValue.getUnit() };
+
+    case 'SassColor':
       const r = Math.round(sassValue.getR());
       const g = Math.round(sassValue.getG());
       const b = Math.round(sassValue.getB());
 
       return {
+        type,
         value: {
           r, g, b,
           a: sassValue.getA(),
@@ -26,18 +29,18 @@ function makeValue(sassValue, sass) {
         },
       };
 
-    case sass.types.Null:
-      return { value: null };
+    case 'SassNull':
+      return { type, value: null };
 
-    case sass.types.List:
+    case 'SassList':
       const listLength = sassValue.getLength();
       const listValue = [];
       for(let i = 0; i < listLength; i++) {
         listValue.push(createStructuredValue(sassValue.getValue(i), sass));
       }
-      return { value: listValue, separator: sassValue.getSeparator() ? ',' : ' ' };
+      return { type, value: listValue, separator: sassValue.getSeparator() ? ',' : ' ' };
 
-    case sass.types.Map:
+    case 'SassMap':
       const mapLength = sassValue.getLength();
       const mapValue = {};
       for(let i = 0; i < mapLength; i++) {
@@ -45,10 +48,10 @@ function makeValue(sassValue, sass) {
         const serializedKey = serialize(sassValue.getKey(i), false, sass);
         mapValue[serializedKey] = createStructuredValue(sassValue.getValue(i), sass);
       }
-      return { value: mapValue };
+      return { type, value: mapValue };
 
     default:
-      throw new Error(`Unsupported sass variable type '${sassValue.constructor.name}'`)
+      throw new Error(`Unsupported sass variable type '${type}'`)
   };
 };
 
@@ -56,9 +59,5 @@ function makeValue(sassValue, sass) {
  * Create a structured value definition from a sassValue object
  */
 export function createStructuredValue(sassValue, sass) {
-  const value = Object.assign({
-    type: sassValue.constructor.name,
-  }, makeValue(sassValue, sass));
-
-  return value;
+  return makeValue(sassValue, sass);
 };
